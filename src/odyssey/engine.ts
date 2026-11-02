@@ -10,6 +10,7 @@ import { TEMPLES } from './depths';
 import { ABYSS_ENTRY } from './dungeon';
 import { drawDepthProps } from './depth-props';
 import { drawSecrets, secretLights, isRealm } from './secret-play';
+import { MANOPLA_ITEM } from './manopla';
 import { SAGA_BOSS_LOOK, sagaOnBoss, sagaOnKill, drawSaga, sagaLights, sagaPosOf, sagaWeather } from './saga-play';
 import { softHole, softGlow, Quality } from './perf';
 import { FRONTIER, FRONTIER_GATES, LEGACY_W, LEGACY_H, type FrontierBiome } from './frontier';
@@ -885,6 +886,7 @@ export class Game {
   }
   afterQuest(q: QuestDef) {
     this.fireBeats(`quest:${q.id}`);
+    if (q.id === "m6" && !this.count(MANOPLA_ITEM)) { this.addItem(MANOPLA_ITEM); this.toast("🧤 Você recebeu a Manopla de Vésper! Procure a Fenda Costurada em Potos.", "#ffd27a"); }
     for (const a of [2, 3, 4, 5]) if (actChainQuests(a).every((id) => this.questStatus[id] === "done")) this.fireBeats(`act:${a}`);
   }
   actProgress(actId: number) {
@@ -1812,6 +1814,7 @@ export class Game {
       this.tutorialActive = false; this.tutorialFloor = 0;
       if (!d.seenBeats) this.seenBeats.add("prologue"); // saves antigos já viveram o começo da história
       if (this.cycle > 0) this.rebuildEnemies(); else this.retireDefeatedBosses();
+      if (this.questStatus["m6"] === "done" && !this.count(MANOPLA_ITEM) && !this.seenBeats.has("manopla_vesper")) this.addItem(MANOPLA_ITEM);
       if (this.questStatus["m6"] === "done") this.fireBeats("quest:m6"); // quem já salvou a Árvore ouve a revelação dos Ecos
     } catch { /* ignore */ }
   }

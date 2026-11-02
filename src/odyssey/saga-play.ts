@@ -9,21 +9,24 @@ import { TS, W, H, solidAt, type World } from './world';
 import { enterDepthState } from './depthplay';
 import { softGlow } from './perf';
 import {
-  SAGA_REALMS, SIDE_STORIES, sagaBossId, zoneLevel, bossStats, realmUnlocked, zoneUnlocked, realmDone,
+  SAGA_REALMS, ORACLE_REALMS, SIDE_STORIES, sagaBossId, zoneLevel, bossStats, realmUnlocked, zoneUnlocked, realmDone,
   sideKey, sideChoiceKey, sideStepOf, sideDone, sidesOf, type SagaRealm, type SagaZone, type SideStory,
 } from './saga';
 import type { Beat } from './story';
 import './saga-extra';
 import { drawSagaScenery, drawSagaWeather, sagaSceneLights } from './saga-fx';
 import { bossHp } from './boss-tuning';
+import { MANOPLA_ITEM, MANOPLA_QUEST } from './manopla';
 
 /* ───────────── Itens lendários de cada reino ───────────── */
 for (const [i, r] of SAGA_REALMS.entries()) {
-  const k = i + 1, rw = r.reward;
+  const k = r.gate ? Math.max(1, Math.round(r.level / 9)) : i + 1, rw = r.reward;
   ITEMS[rw.item] ??= rw.slot === 'weapon'
     ? { id: rw.item, name: rw.name, type: 'weapon', weapon: 'spear', atk: 160, bonus: { str: 40, int: 40, dex: 30, vit: 30, hp: 900, mp: 400 }, desc: rw.desc, color: r.color, price: 99999 }
     : { id: rw.item, name: rw.name, type: rw.slot, ...(rw.slot === 'armor' ? { def: 20 + k * 9 } : {}), bonus: { str: 5 + k * 4, int: 5 + k * 4, vit: 4 + k * 3, dex: 3 + k * 3, hp: 120 + k * 90, mp: 60 + k * 40 }, desc: rw.desc, color: r.color, price: 5000 * k };
 }
+
+ITEMS[MANOPLA_ITEM] ??= { id: MANOPLA_ITEM, name: 'Manopla de Vésper', type: 'ring', bonus: { str: 4, int: 4, dex: 3, vit: 3, hp: 60, mp: 30 }, desc: 'A mão da Primeira Cartógrafa. Abre a Fenda Costurada, a oeste do Oráculo em Potos.', color: '#e8c070', price: 0 };
 
 /** Aparência dos chefes de saga (lida pelo motor ao desenhar chefes). */
 export const SAGA_BOSS_LOOK: Record<string, { kind: EnemyKind; tint: string; scale: number }> = Object.fromEntries(
@@ -35,7 +38,7 @@ const has = (g: Game) => (k: string) => g.discoveries.has(k);
 
 /* ───────────── Oráculo e Círculo dos Oito Portais ───────────── */
 export const ORACLE: NpcDef = { id: 'saga_oracle', name: 'Oráculo Seraphine', title: 'Voz dos Oito Céus', tx: 0, ty: 0, pal: { skin: '#f0d8c8', hair: '#e0e0ff', body: '#6040a0', legs: '#302050', accent: '#c0a0ff' }, lines: [] };
-let plaza: { oracle: { tx: number; ty: number }; portals: { tx: number; ty: number }[] } | null = null;
+let plaza: { oracle: { tx: number; ty: number }; portals: { tx: number; ty: number }[]; rift: { tx: number; ty: number } } | null = null;
 function walk(world: World, x: number, y: number) { return x > 3 && y > 3 && x < W - 4 && y < H - 4 && !solidAt(world, x * TS + 8, y * TS + 8); }
 function nearestFree(world: World, bx: number, by: number) {
   for (let r = 0; r < 14; r++) for (let k = -r; k <= r; k++) for (const [x, y] of [[bx + k, by - r], [bx + k, by + r], [bx - r, by + k], [bx + r, by + k]] as const) if (walk(world, x, y)) return { tx: x, ty: y };
@@ -44,8 +47,8 @@ function nearestFree(world: World, bx: number, by: number) {
 export function sagaPlaza(world: World) {
   if (plaza) return plaza;
   const o = nearestFree(world, 104, 140);
-  const portals = SAGA_REALMS.map((_, i) => { const a = (i / SAGA_REALMS.length) * Math.PI * 2 - Math.PI / 2; return nearestFree(world, Math.round(o.tx + Math.cos(a) * 7), Math.round(o.ty + Math.sin(a) * 5)); });
-  plaza = { oracle: o, portals }; return plaza;
+  const portals = ORACLE_REALMS.map((_, i) => { const a = (i / ORACLE_REALMS.length) * Math.PI * 2 - Math.PI / 2; return nearestFree(world, Math.round(o.tx + Math.cos(a) * 7), Math.round(o.ty + Math.sin(a) * 5)); });
+  plaza = { oracle: o, portals, rift: nearestFree(world, o.tx - 13, o.ty + 3) }; return plaza;
 }
 
 /* ───────────── Estado da zona atual ───────────── */
@@ -116,8 +119,13 @@ export function sagaOnBoss(g: Game, id: string) {
     if (i === r.zones.length - 1) {
       play(g, { id: `saga_epi_${r.id}`, trigger: 'saga', title: `${r.name} · Epílogo`, lines: r.epilogue });
       if (g.addItem(r.reward.item)) g.toast(`✦ Relíquia da Saga: ${r.reward.name}`, r.color);
-      const next = SAGA_REALMS[ri + 1];
-      g.toast(next ? `🌀 Um novo portal desperta em Potos: ${next.name}.` : '✦ A Saga dos Oito Céus está completa!', '#ffd040');
+      if (r.gate) {
+        const chain = SAGA_REALMS.filter((x) => x.gate === r.gate), nx = chain[chain.indexOf(r) + 1];
+        g.toast(nx ? `🧤 A Manopla costura uma nova Fenda: ${nx.name}.` : '✦ As Travessias da Manopla estão completas. Vésper descansa.', '#ffd27a');
+      } else {
+        const next = ORACLE_REALMS[ri + 1];
+        g.toast(next ? `🌀 Um novo portal desperta em Potos: ${next.name}.` : '✦ A Saga dos Oito Céus está completa!', '#ffd040');
+      }
     } else g.toast(`O caminho para ${r.zones[i + 1]!.name} está aberto.`, '#a0ffa0');
   }
 }
@@ -198,8 +206,8 @@ function chooseZone(g: Game, ri: number) {
   g.dialog = { npc: { ...ORACLE, name: r.name, title: r.subtitle }, text: `${r.prologue[1] ?? r.prologue[0]}\n\nZonas abertas: ${open.length}/${r.zones.length} · Nível recomendado ${r.level}+`, choices };
 }
 function oracleTalk(g: Game) {
-  const d = done(g), cur = SAGA_REALMS.findIndex((r) => !realmDone(r, d));
-  const total = SAGA_REALMS.reduce((n, r) => n + r.zones.filter((_, i) => d(sagaBossId(r, i))).length, 0), all = SAGA_REALMS.reduce((n, r) => n + r.zones.length, 0);
+  const d = done(g), cur = ORACLE_REALMS.findIndex((r) => !realmDone(r, d));
+  const total = ORACLE_REALMS.reduce((n, r) => n + r.zones.filter((_, i) => d(sagaBossId(r, i))).length, 0), all = ORACLE_REALMS.reduce((n, r) => n + r.zones.length, 0);
   const sides = SIDE_STORIES.filter((s) => sideDone(s, has(g))).length;
   const text = cur < 0
     ? `Você completou a Saga dos Oito Céus. Os portais continuam abertos para quem quiser revisitar os reinos.\n\nZonas: ${total}/${all} · Histórias: ${sides}/${SIDE_STORIES.length}`
@@ -209,13 +217,32 @@ function oracleTalk(g: Game) {
     { label: 'Fechar', act: () => { g.dialog = null; } },
   ] };
 }
+/* ───────────── A Fenda Costurada (Travessias da Manopla) ───────────── */
+export const hasManopla = (g: Game) => g.questStatus[MANOPLA_QUEST] === 'done';
+const VESPER: NpcDef = { ...ORACLE, id: 'manopla_vesper', name: 'Vésper (na Manopla)', title: 'A Primeira Cartógrafa', pal: { skin: '#f0d8b0', hair: '#f0e8d0', body: '#a07030', legs: '#503820', accent: '#ffd27a' } };
+function riftTalk(g: Game) {
+  const d = done(g), list = SAGA_REALMS.map((r, i) => ({ r, i })).filter((x) => x.r.gate === 'manopla');
+  const cur = list.find((x) => !realmDone(x.r, d));
+  const text = cur
+    ? `A Manopla vibra perto da costura. Vésper sussurra:\n\n— ${cur.r.prologue[2] ?? cur.r.prologue[0]}\n\nTravessias concluídas: ${list.filter((x) => realmDone(x.r, d)).length}/${list.length}`
+    : 'Vésper: — Todas as Fendas estão costuradas de volta ao mundo. Mas a porta continua aberta, se quiser rever os lugares que salvamos.';
+  g.dialog = { npc: VESPER, text, choices: [
+    ...list.filter((x) => realmUnlocked(x.i, d)).map((x) => ({ label: `${realmDone(x.r, d) ? '✓' : '🧤'} ${x.r.name} (Nv ${x.r.level}+)`, act: () => chooseZone(g, x.i) })),
+    { label: 'Fechar', act: () => { g.dialog = null; } },
+  ] };
+}
 export function sagaSurfaceAction(g: Game, run: boolean): string {
   const pz = sagaPlaza(g.overworld), d = done(g);
+  if (near(g, pz.rift.tx, pz.rift.ty, 22)) {
+    const ok = hasManopla(g);
+    if (run) { if (ok) riftTalk(g); else g.toast('Uma cicatriz costurada no chão. Algo do outro lado bate, como um coração. Falta uma chave... ou uma mão.', '#d0b080'); }
+    return ok ? 'E · Fenda Costurada — Travessias da Manopla' : 'Fenda Costurada (selada)';
+  }
   if (near(g, pz.oracle.tx, pz.oracle.ty, 24)) { if (run) oracleTalk(g); return 'E · Oráculo Seraphine — A Saga dos Oito Céus'; }
   for (const [i, p] of pz.portals.entries()) {
     if (!near(g, p.tx, p.ty, 20)) continue;
-    const r = SAGA_REALMS[i]!, open = realmUnlocked(i, d);
-    if (run) { if (open) chooseZone(g, i); else g.toast(`O portal de ${r.name} está selado. Complete ${SAGA_REALMS[i - 1]!.name} primeiro.`, '#ff9a80'); }
+    const r = ORACLE_REALMS[i]!, open = realmUnlocked(i, d);
+    if (run) { if (open) chooseZone(g, i); else g.toast(`O portal de ${r.name} está selado. Complete ${ORACLE_REALMS[i - 1]!.name} primeiro.`, '#ff9a80'); }
     return open ? `E · Portal: ${r.name} (Nv ${r.level}+)` : `Portal selado: ${r.name}`;
   }
   return '';
@@ -245,6 +272,23 @@ export function setSagaLeave(f: (g: Game) => void) { leaveImpl = f; }
 function leaveToSurface(g: Game) { leaveImpl?.(g); }
 
 /* ───────────── Desenho ───────────── */
+/** A Fenda Costurada: uma cicatriz no chão, presa por pontos de latão; com a Manopla, ela se abre em luz. */
+function drawRift(c: CanvasRenderingContext2D, x: number, y: number, open: boolean, wt: number) {
+  c.save();
+  c.globalAlpha = 0.55; c.fillStyle = '#120a06'; c.beginPath(); c.ellipse(x, y, 18, 6, 0, 0, Math.PI * 2); c.fill();
+  const pts = [-16, -11, -6, -1, 4, 9, 14], amp = open ? 3 + Math.sin(wt * 2) * 1.2 : 1;
+  c.globalAlpha = 1; c.lineWidth = 2; c.strokeStyle = open ? '#ffd27a' : '#3a2a20';
+  c.beginPath(); pts.forEach((dx, k) => { const yy = y + Math.sin(k * 1.7) * 2; if (k === 0) c.moveTo(x + dx, yy); else c.lineTo(x + dx, yy); }); c.stroke();
+  if (open) {
+    c.globalCompositeOperation = 'lighter';
+    softGlow(c, x, y - 2, 28, 'rgba(255,200,110,0.45)');
+    for (let k = 0; k < 6; k++) { const t = (wt * 0.5 + k / 6) % 1; c.globalAlpha = 1 - t; c.fillStyle = k % 2 ? '#ffe6b0' : '#9ef6ff'; c.fillRect(x - 12 + k * 5, y - 4 - t * 26, 2, 2); }
+    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+  }
+  // pontos de costura em latão
+  for (const [k, dx] of pts.entries()) { const yy = y + Math.sin(k * 1.7) * 2; c.fillStyle = '#c89a50'; c.fillRect(x + dx - 1, yy - amp - 1, 2, 2); c.fillRect(x + dx - 1, yy + amp - 1, 2, 2); c.fillStyle = '#8a6a30'; c.fillRect(x + dx, yy - amp, 1, amp * 2); }
+  c.restore();
+}
 function drawPortal(c: CanvasRenderingContext2D, x: number, y: number, col: string, open: boolean, wt: number, i: number) {
   c.save();
   c.globalAlpha = 0.5; c.fillStyle = '#1a1028'; c.beginPath(); c.ellipse(x, y + 2, 15, 5, 0, 0, Math.PI * 2); c.fill();
@@ -279,9 +323,10 @@ export function drawSaga(g: Game, c: CanvasRenderingContext2D, draws: { y: numbe
       } });
     }
     for (const [i, p] of pz.portals.entries()) if (vis(p.tx, p.ty)) {
-      const r = SAGA_REALMS[i]!, open = realmUnlocked(i, d);
+      const r = ORACLE_REALMS[i]!, open = realmUnlocked(i, d);
       draws.push({ y: p.ty * TS + 14, f: () => drawPortal(c, p.tx * TS + 8, p.ty * TS + 14, r.portal, open, wt, i) });
     }
+    if (vis(pz.rift.tx, pz.rift.ty)) { const open = hasManopla(g); draws.push({ y: pz.rift.ty * TS + 10, f: () => drawRift(c, pz.rift.tx * TS + 8, pz.rift.ty * TS + 12, open, wt) }); }
     return;
   }
   const pos = sagaPosOf(g); if (!pos) return;
