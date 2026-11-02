@@ -100,7 +100,7 @@ export const MANOPLA_REALMS: SagaRealm[] = [
       'Vésper: — Quando você encontrar Vael nas Fendas de Obsidiana, não lute só com a espada. Cante isso para ele.',
       'A Manopla volta para a sua mão, mais leve. Agora ela é sua. As Fendas continuam costuradas, para quem quiser voltar.',
     ],
-    reward: { item: 'manopla_leviata', name: 'Manopla Desperta de Vésper', desc: 'A mão da Primeira Cartógrafa, enfim livre. Fecha o punho no ritmo da Canção.', slot: 'weapon' },
+    reward: { item: 'manopla_leviata', name: 'Manopla Desperta de Vésper', desc: 'A mão da Primeira Cartógrafa, enfim livre. Fecha o punho no ritmo da Canção.', slot: 'armor' },
     zones: [
       z('Mar de Estrelas Mortas', 'Você caminha sobre constelações apagadas. Cada passo acende uma estrela que alguém esqueceu de desejar.', 'aurora', [T.FLOOR, T.ROCK, T.CRYSTAL], ['wisp', 'jelly', 'crow'], 'stars', '#9ef6ff', 0.15, [120, 200, 255, 0.2],
         b('Rêmora Celeste Ylla', 'jelly', '#90e0ff', 3, 'Ylla gruda no casco de estrelas do Leviatã: — Ele é meu! Enquanto ele dorme, eu como a luz dele!', 'Ylla se solta, e as estrelas ao redor brilham mais forte.', 'Ao longe, o esqueleto do Leviatã abre a boca, como quem espera.'), 'clouds'),
