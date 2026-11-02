@@ -7,6 +7,7 @@ import { BIOME_LEVEL } from './levels';
 import { CHRONICLE_BEATS } from './chronicle';
 import { LORE_BEATS } from './lore';
 import { SENHOR_INTROS, SENHOR_VICTORY } from './senhores';
+import { MANOPLA_BEAT } from './manopla';
 import type { EpicScene, StageFx } from './epic';
 
 /* ───────────────────────────── Atos ───────────────────────────── */
@@ -302,6 +303,7 @@ export const BEATS: Beat[] = [
     '— Existem dezessete Ecos, espalhados além dos Picos e das Areias. Cada um tem um Vigia. Cada um tem um guardião corrompido.',
     'O Atlas agora mostra as passagens para as terras de fronteira. Procure os Vigias.',
   ] },
+  MANOPLA_BEAT,
   ...ecoBeats,
   { id: 'act2_end', trigger: 'act:2', title: 'Fim do Ato II — Os Ecos Mansos', lines: [
     'Seis Ecos cantam outra vez. Os Vigias acendem fogueiras em cada fronteira.',

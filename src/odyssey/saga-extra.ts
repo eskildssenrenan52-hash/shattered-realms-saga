@@ -2,6 +2,7 @@
 // estrelas por reino e as Grandes Jornadas — histórias paralelas longas, em vários atos.
 // Dado puro e determinístico; o progresso vive no conjunto `discoveries` do save.
 import { SAGA_REALMS, SIDE_STORIES, type SagaRealm, type SideStep, type SideStory } from './saga';
+import { MANOPLA_CHAMPS, MANOPLA_RELICS } from './manopla';
 
 /* ───────────── Provações de zona ───────────── */
 export const RELICS_PER_ZONE = 5;
@@ -24,6 +25,7 @@ export const relicsFound = (r: SagaRealm, zi: number, has: (k: string) => boolea
 
 /** Campeões: um guerreiro de elite por zona, com título próprio do reino. */
 const CHAMPS: Record<string, string[]> = {
+  ...MANOPLA_CHAMPS,
   aeloria: ['Contramestre Coral-Negro', 'Caçador de Ecos Sibilante', 'Arauto da Febre', 'Garra-de-Vento Rasgada', 'Brasa Errante Kael', 'Afogado Que Reza', 'Elo Partido Vigilante'],
   ylvenna: ['Bobo da Corte Sem Riso', 'Cavaleiro do Solstício', 'Lâmina de Geada Fina', 'Espelho Que Morde', 'Espinheiro Andante'],
   thalassa: ['Lança-Coral Hydros', 'Serpente das Algas Velhas', 'Sentinela de Mármore Molhado', 'Olho-Lanterna da Fossa'],
@@ -38,6 +40,7 @@ export const championStats = (ri: number, zi: number, level: number) => ({ hpMul
 
 /** Nomes e textos das relíquias (5 por zona, com o nome da zona entrelaçado). */
 const RELIC: Record<string, [string, (z: string) => string][]> = {
+  ...MANOPLA_RELICS,
   aeloria: [
     ['Concha Gravada', (z) => `Alguém riscou um nome numa concha de ${z}. A maré apagou metade; a outra metade ainda chama.`],
     ['Elo de Corrente', (z) => `Um elo das correntes de Lyria, caído em ${z}. Ainda está morno, como mão de quem soltou agora.`],

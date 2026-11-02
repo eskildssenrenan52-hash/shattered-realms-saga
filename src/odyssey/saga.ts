@@ -3,6 +3,7 @@
 // um chefe por zona, capítulos de história e histórias paralelas em várias etapas.
 import type { Biome, EnemyKind } from './data';
 import { T } from './world';
+import { MANOPLA_REALMS, MANOPLA_SIDES } from './manopla';
 
 export type SagaFx = 'embers' | 'ash' | 'bubbles' | 'spray' | 'leaves' | 'fireflies' | 'spores' | 'snow' | 'clouds' | 'sparkles' | 'ghosts' | 'sand' | 'rain' | 'petals' | 'void' | 'stars' | 'feathers' | 'gears';
 
@@ -13,6 +14,8 @@ export interface SagaZone {
 }
 export interface SagaRealm {
   id: string; name: string; subtitle: string; level: number; color: string; portal: string;
+  /** Reinos com portão próprio (ex.: Travessias da Manopla) ficam fora do Círculo do Oráculo. */
+  gate?: 'manopla' | undefined;
   prologue: string[]; epilogue: string[]; zones: SagaZone[]; reward: { item: string; name: string; desc: string; slot: 'weapon' | 'armor' | 'ring' | 'amulet' };
 }
 
@@ -283,13 +286,21 @@ export const SAGA_REALMS: SagaRealm[] = [
     ],
   },
 ];
+// As Travessias da Manopla moram no fim da lista para não mudar os índices da Saga.
+for (const r of MANOPLA_REALMS) if (!SAGA_REALMS.some((x) => x.id === r.id)) SAGA_REALMS.push(r);
+/** Reinos do Círculo dos Oito Portais (sem os de portão próprio). */
+export const ORACLE_REALMS = SAGA_REALMS.filter((r) => !r.gate);
 
 export const ZONE_COUNT = SAGA_REALMS.reduce((n, r) => n + r.zones.length, 0);
 export const zoneLevel = (r: SagaRealm, i: number) => r.level + i * 2;
 export const sagaBossId = (r: SagaRealm, i: number) => `saga_${r.id}_${i}`;
 export const realmDone = (r: SagaRealm, done: (id: string) => boolean) => done(sagaBossId(r, r.zones.length - 1));
 /** Reino i abre quando o chefe final do reino anterior cai. */
-export const realmUnlocked = (i: number, done: (id: string) => boolean) => i === 0 || realmDone(SAGA_REALMS[i - 1]!, done);
+export const realmUnlocked = (i: number, done: (id: string) => boolean) => {
+  const r = SAGA_REALMS[i]; if (!r) return false;
+  const chain = SAGA_REALMS.filter((x) => x.gate === r.gate), k = chain.indexOf(r);
+  return k === 0 || realmDone(chain[k - 1]!, done);
+};
 /** Zona k abre quando o chefe da zona k-1 cai. */
 export const zoneUnlocked = (r: SagaRealm, k: number, done: (id: string) => boolean) => k === 0 || done(sagaBossId(r, k - 1));
 export function bossStats(r: SagaRealm, i: number) {
@@ -431,6 +442,7 @@ export const SIDE_STORIES: SideStory[] = [
       talk(4, 'Estamos prontos. Quando você erguer a Lança, cantaremos.', 'Encontre Seraphine no Trono do Silêncio.')],
     ending: ['Mil vozes cantam com você. Pela primeira vez, o Silêncio escuta.', ''], reward: { gold: 60000, xp: 300000, item: 'void_essence', qty: 5 } },
 ];
+for (const st of MANOPLA_SIDES) if (!SIDE_STORIES.some((x) => x.id === st.id)) SIDE_STORIES.push(st);
 
 export const sideKey = (s: SideStory, i: number) => `side:${s.id}:${i}`;
 export const sideChoiceKey = (s: SideStory, opt: number) => `side:${s.id}:choice${opt}`;
